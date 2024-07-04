@@ -1,1 +1,2 @@
-# Sistema de Venta en Java y Mysql
+# Sistema de Venta en Java y sql
+
