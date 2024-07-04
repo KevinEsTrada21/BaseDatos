@@ -1,0 +1,65 @@
+El problema que estás enfrentando probablemente esté relacionado con cómo gestionas la conexión (con) en tu clase ClienteDao. Observando tu código, hay algunas áreas que podrían estar contribuyendo al error NullPointerException que mencionaste:
+
+Inicialización de la conexión: En tu clase ClienteDao, tienes una instancia de Conexion llamada cn, la cual usas para obtener la conexión (con). Sin embargo, no veo dónde exactamente inicializas con dentro del constructor o método de tu clase ClienteDao.
+
+Manejo de la conexión: Estás cerrando la conexión (con) en los bloques finally de tus métodos, lo cual es una buena práctica para liberar recursos. Sin embargo, debes asegurarte de que con esté inicializado correctamente antes de usarlo.
+
+Alcance de la conexión: Verifica que la conexión esté abierta y disponible en el momento en que se ejecutan las consultas SQL. Si con es null en el momento en que intentas preparar una consulta (ps = con.prepareStatement(sql)), obtendrás un NullPointerException.
+
+Aquí te dejo algunas sugerencias para mejorar y corregir tu código:
+
+1. Constructor y conexión
+Asegúrate de inicializar con en el constructor de ClienteDao o en algún método de inicialización. Puedes usar la instancia de Conexion (cn) para obtener la conexión y asignarla a con.
+
+java
+Copiar código
+public ClienteDao() {
+    cn = new Conexion(); // Inicializa la instancia de Conexion
+    con = cn.getConnection(); // Obtiene la conexión y la asigna a con
+}
+2. Métodos que usan la conexión
+En cada método donde uses con, verifica que esté inicializado antes de usarlo. Aquí hay un ejemplo modificado de tu método ListarCliente:
+
+java
+Copiar código
+public List<Cliente> ListarCliente() {
+    List<Cliente> ListaCl = new ArrayList<>();
+    String sql = "SELECT * FROM clientes";
+    
+    try {
+        con = cn.getConnection(); // Asegúrate de obtener la conexión
+        ps = con.prepareStatement(sql);
+        rs = ps.executeQuery();
+        while (rs.next()) {               
+            Cliente cl = new Cliente();
+            cl.setId(rs.getInt("id"));
+            cl.setDni(rs.getString("dni"));
+            cl.setNombre(rs.getString("nombre"));
+            cl.setTelefono(rs.getString("telefono"));
+            cl.setDireccion(rs.getString("direccion"));
+            ListaCl.add(cl);
+        }
+    } catch (SQLException e) {
+        System.out.println(e.toString());
+    } finally {
+        try {
+            if (rs != null) rs.close();
+            if (ps != null) ps.close();
+            // No cierres con en este punto, ya que otros métodos podrían necesitarlo
+        } catch (SQLException ex) {
+            System.out.println(ex.toString());
+        }
+    }
+    return ListaCl;
+}
+3. Cierre de recursos
+Es buena práctica cerrar los recursos (ResultSet, PreparedStatement, y Connection) en bloques finally. Sin embargo, ten cuidado de no cerrar la conexión (con) prematuramente si otros métodos aún la necesitan abierta.
+
+4. Revisión del flujo de tu aplicación
+Asegúrate de que los métodos que invocan a los de ClienteDao inicialicen correctamente la instancia de ClienteDao. Por ejemplo:
+
+java
+Copiar código
+ClienteDao clienteDao = new ClienteDao();
+List<Cliente> clientes = clienteDao.ListarCliente();
+Con estas modificaciones, deberías poder evitar el NullPointerException relacionado con con siendo null y asegurarte de que tu aplicación maneje correctamente las conexiones a la base de datos. Asegúrate también de manejar las excepciones adecuadamente para una mejor depuración y gestión de errores.
