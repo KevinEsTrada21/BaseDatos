@@ -1,0 +1,150 @@
+-- Disable auto_increment behavior for SQL Server
+SET IDENTITY_INSERT clientes ON;
+SET IDENTITY_INSERT config ON;
+SET IDENTITY_INSERT detalle ON;
+SET IDENTITY_INSERT productos ON;
+SET IDENTITY_INSERT proveedor ON;
+SET IDENTITY_INSERT usuarios ON;
+SET IDENTITY_INSERT ventas ON;
+
+-- --------------------------------------------------------
+-- Base de datos: `sistemaventa`
+-- --------------------------------------------------------
+
+-- --------------------------------------------------------
+-- Estructura de tabla para la tabla `clientes`
+-- --------------------------------------------------------
+CREATE TABLE clientes (
+  id int NOT NULL PRIMARY KEY,
+  dni varchar(8) NOT NULL,
+  nombre varchar(180) NOT NULL,
+  telefono varchar(15) NOT NULL,
+  direccion varchar(255) NOT NULL
+);
+
+-- Volcado de datos para la tabla `clientes`
+INSERT INTO clientes (id, dni, nombre, telefono, direccion) VALUES
+(1, '61474046', 'Kevin Estrada', '918904971', 'Casma - Perú');
+
+-- --------------------------------------------------------
+-- Estructura de tabla para la tabla `config`
+-- --------------------------------------------------------
+CREATE TABLE config (
+  id int NOT NULL PRIMARY KEY,
+  ruc bigint NOT NULL,
+  nombre varchar(255) NOT NULL,
+  telefono int NOT NULL,
+  direccion text NOT NULL,
+  mensaje varchar(255) NOT NULL
+);
+
+-- Volcado de datos para la tabla `config`
+INSERT INTO config (id, ruc, nombre, telefono, direccion, mensaje) VALUES
+(1, 71347267, 'Ruby Cruz', 925491524, 'Chimbote - Perú', 'Base de datos');
+
+-- --------------------------------------------------------
+-- Estructura de tabla para la tabla `detalle`
+-- --------------------------------------------------------
+CREATE TABLE detalle (
+  id int NOT NULL PRIMARY KEY,
+  id_pro int NOT NULL,
+  cantidad int NOT NULL,
+  precio decimal(10,2) NOT NULL,
+  id_venta int NOT NULL,
+  CONSTRAINT FK_detalle_id_pro FOREIGN KEY (id_pro) REFERENCES productos(id),
+  CONSTRAINT FK_detalle_id_venta FOREIGN KEY (id_venta) REFERENCES ventas(id)
+);
+
+-- Volcado de datos para la tabla `detalle`
+INSERT INTO detalle (id, id_pro, cantidad, precio, id_venta) VALUES
+(9, 1, 2, 3000.00, 8),
+(10, 1, 2, 3000.00, 9),
+(11, 1, 2, 3000.00, 10),
+(12, 1, 2, 3000.00, 11),
+(13, 1, 2, 3000.00, 12),
+(14, 1, 2, 3000.00, 13),
+(15, 1, 2, 3000.00, 14),
+(16, 1, 2, 3000.00, 15);
+
+-- --------------------------------------------------------
+-- Estructura de tabla para la tabla `productos`
+-- --------------------------------------------------------
+CREATE TABLE productos (
+  id int NOT NULL PRIMARY KEY,
+  codigo varchar(20) NOT NULL,
+  nombre text NOT NULL,
+  proveedor int NOT NULL,
+  stock int NOT NULL,
+  precio decimal(10,2) NOT NULL,
+  CONSTRAINT FK_productos_proveedor FOREIGN KEY (proveedor) REFERENCES proveedor(id)
+);
+
+-- Volcado de datos para la tabla `productos`
+INSERT INTO productos (id, codigo, nombre, proveedor, stock, precio) VALUES
+(1, '1', 'Laptop lenovo', 1, 7, 3000.00),
+(2, '2', 'Iphone 13', 1, 10, 4500.00);
+
+-- --------------------------------------------------------
+-- Estructura de tabla para la tabla `proveedor`
+-- --------------------------------------------------------
+CREATE TABLE proveedor (
+  id int NOT NULL PRIMARY KEY,
+  ruc varchar(15) NOT NULL,
+  nombre varchar(255) NOT NULL,
+  telefono varchar(15) NOT NULL,
+  direccion varchar(255) NOT NULL
+);
+
+-- Volcado de datos para la tabla `proveedor`
+INSERT INTO proveedor (id, ruc, nombre, telefono, direccion) VALUES
+(1, '998787', 'Open Services', '798978879', 'Chimbote - Perú'),
+(2, '124738', 'Hábitat Eléctrico', '1839457389', 'Chimbote - Perú');
+
+-- --------------------------------------------------------
+-- Estructura de tabla para la tabla `usuarios`
+-- --------------------------------------------------------
+CREATE TABLE usuarios (
+  id int NOT NULL PRIMARY KEY,
+  nombre varchar(200) NOT NULL,
+  correo varchar(200) NOT NULL,
+  pass varchar(50) NOT NULL,
+  rol varchar(20) NOT NULL
+);
+
+-- Volcado de datos para la tabla `usuarios`
+INSERT INTO usuarios (id, nombre, correo, pass, rol) VALUES
+(1, 'Kevin Estrada', 'kevinestrada2103@gmail.com', 'admin', 'Administrador');
+
+-- --------------------------------------------------------
+-- Estructura de tabla para la tabla `ventas`
+-- --------------------------------------------------------
+CREATE TABLE ventas (
+  id int NOT NULL PRIMARY KEY,
+  cliente int NOT NULL,
+  vendedor varchar(60) NOT NULL,
+  total decimal(10,2) NOT NULL,
+  fecha varchar(20) NOT NULL,
+  CONSTRAINT FK_ventas_cliente FOREIGN KEY (cliente) REFERENCES clientes(id)
+);
+
+-- Volcado de datos para la tabla `ventas`
+INSERT INTO ventas (id, cliente, vendedor, total, fecha) VALUES
+(8, 1, 'Kevin Estrada', 6000.00, '18/07/2024'),
+(9, 1, 'Kevin Estrada', 6000.00, '18/07/2024'),
+(10, 1, 'Kevin Estrada', 6000.00, '18/07/2024'),
+(11, 1, 'Kevin Estrada', 6000.00, '18/07/2024'),
+(12, 1, 'Kevin Estrada', 6000.00, '18/07/2024'),
+(13, 1, 'Kevin Estrada', 6000.00, '18/07/2024'),
+(14, 1, 'Kevin Estrada', 6000.00, '18/07/2024'),
+(15, 1, 'Kevin Estrada', 6000.00, '18/07/2024');
+
+-- --------------------------------------------------------
+-- Restaurar auto_increment
+-- --------------------------------------------------------
+SET IDENTITY_INSERT clientes OFF;
+SET IDENTITY_INSERT config OFF;
+SET IDENTITY_INSERT detalle OFF;
+SET IDENTITY_INSERT productos OFF;
+SET IDENTITY_INSERT proveedor OFF;
+SET IDENTITY_INSERT usuarios OFF;
+SET IDENTITY_INSERT ventas OFF;
