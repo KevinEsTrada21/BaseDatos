@@ -14,6 +14,7 @@ import com.itextpdf.text.Rectangle;
 import com.itextpdf.text.pdf.PdfPCell;
 import com.itextpdf.text.pdf.PdfPTable;
 import com.itextpdf.text.pdf.PdfWriter;
+
 import java.awt.Desktop;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -29,15 +30,15 @@ import java.util.List;
 import javax.swing.filechooser.FileSystemView;
 
 public class VentaDao {
-    Connection con;
-    Conexion cn = new Conexion();
-    PreparedStatement ps;
-    ResultSet rs;
-    int r;
-    
-    public int IdVenta(){
+    private Connection con;
+    private Conexion cn = new Conexion();
+    private PreparedStatement ps;
+    private ResultSet rs;
+
+    // Obtiene el último ID de venta
+    public int obtenerIdVenta() {
+        String sql = "SELECT ISNULL(MAX(id), 0) FROM ventas";
         int id = 0;
-        String sql = "SELECT MAX(id) FROM ventas";
         try {
             con = cn.getConnection();
             ps = con.prepareStatement(sql);
@@ -46,92 +47,104 @@ public class VentaDao {
                 id = rs.getInt(1);
             }
         } catch (SQLException e) {
-            System.out.println(e.toString());
+            System.out.println("Error al obtener el ID de venta: " + e.getMessage());
+        } finally {
+            cerrarRecursos();
         }
         return id;
     }
-    
-    public int RegistrarVenta(Venta v){
+
+    // Registra una nueva venta
+    public int registrarVenta(Venta v) {
         String sql = "INSERT INTO ventas (cliente, vendedor, total, fecha) VALUES (?,?,?,?)";
+        int idGenerado = 0;
         try {
             con = cn.getConnection();
-            ps = con.prepareStatement(sql);
+            ps = con.prepareStatement(sql, PreparedStatement.RETURN_GENERATED_KEYS);
             ps.setInt(1, v.getCliente());
             ps.setString(2, v.getVendedor());
             ps.setDouble(3, v.getTotal());
             ps.setString(4, v.getFecha());
-            ps.execute();
-        } catch (SQLException e) {
-            System.out.println(e.toString());
-        }finally{
-            try {
-                con.close();
-            } catch (SQLException e) {
-                System.out.println(e.toString());
+            ps.executeUpdate();
+            rs = ps.getGeneratedKeys();
+            if (rs.next()) {
+                idGenerado = rs.getInt(1);
             }
+        } catch (SQLException e) {
+            System.out.println("Error al registrar la venta: " + e.getMessage());
+        } finally {
+            cerrarRecursos();
         }
-        return r;
+        return idGenerado;
     }
-    
-    public int RegistrarDetalle(Detalle Dv){
-       String sql = "INSERT INTO detalle (id_pro, cantidad, precio, id_venta) VALUES (?,?,?,?)";
+
+    // Registra un detalle de la venta
+    public boolean registrarDetalle(Detalle d) {
+        String sql = "INSERT INTO detalle (id_pro, cantidad, precio, id_venta) VALUES (?,?,?,?)";
+        boolean exito = false;
         try {
             con = cn.getConnection();
             ps = con.prepareStatement(sql);
-            ps.setInt(1, Dv.getId_pro());
-            ps.setInt(2, Dv.getCantidad());
-            ps.setDouble(3, Dv.getPrecio());
-            ps.setInt(4, Dv.getId());
-            ps.execute();
+            ps.setInt(1, d.getId_pro());
+            ps.setInt(2, d.getCantidad());
+            ps.setDouble(3, d.getPrecio());
+            ps.setInt(4, d.getId());
+            int filasAfectadas = ps.executeUpdate();
+            exito = (filasAfectadas > 0);
         } catch (SQLException e) {
-            System.out.println(e.toString());
-        }finally{
-            try {
-                con.close();
-            } catch (SQLException e) {
-                System.out.println(e.toString());
-            }
+            System.out.println("Error al registrar el detalle: " + e.getMessage());
+        } finally {
+            cerrarRecursos();
         }
-        return r;
+        return exito;
     }
-    
-    public boolean ActualizarStock(int cant, int id){
+
+    // Actualiza el stock de un producto
+    public boolean actualizarStock(int cant, int id) {
         String sql = "UPDATE productos SET stock = ? WHERE id = ?";
+        boolean exito = false;
         try {
             con = cn.getConnection();
             ps = con.prepareStatement(sql);
-            ps.setInt(1,cant);
+            ps.setInt(1, cant);
             ps.setInt(2, id);
-            ps.execute();
-            return true;
+            int filasAfectadas = ps.executeUpdate();
+            exito = (filasAfectadas > 0);
         } catch (SQLException e) {
-            System.out.println(e.toString());
-            return false;
+            System.out.println("Error al actualizar el stock: " + e.getMessage());
+        } finally {
+            cerrarRecursos();
         }
+        return exito;
     }
-    
-    public List Listarventas(){
-       List<Venta> ListaVenta = new ArrayList();
-       String sql = "SELECT c.id AS id_cli, c.nombre, v.* FROM clientes c INNER JOIN ventas v ON c.id = v.cliente";
-       try {
-           con = cn.getConnection();
-           ps = con.prepareStatement(sql);
-           rs = ps.executeQuery();
-           while (rs.next()) {               
-               Venta vent = new Venta();
-               vent.setId(rs.getInt("id"));
-               vent.setNombre_cli(rs.getString("nombre"));
-               vent.setVendedor(rs.getString("vendedor"));
-               vent.setTotal(rs.getDouble("total"));
-               ListaVenta.add(vent);
-           }
-       } catch (SQLException e) {
-           System.out.println(e.toString());
-       }
-       return ListaVenta;
-   }
-    public Venta BuscarVenta(int id){
-        Venta cl = new Venta();
+
+    // Lista todas las ventas
+    public List<Venta> listarVentas() {
+        List<Venta> listaVenta = new ArrayList<>();
+        String sql = "SELECT c.id AS id_cli, c.nombre, v.* FROM clientes c INNER JOIN ventas v ON c.id = v.cliente";
+        try {
+            con = cn.getConnection();
+            ps = con.prepareStatement(sql);
+            rs = ps.executeQuery();
+            while (rs.next()) {
+                Venta vent = new Venta();
+                vent.setId(rs.getInt("id"));
+                vent.setNombre_cli(rs.getString("nombre"));
+                vent.setVendedor(rs.getString("vendedor"));
+                vent.setTotal(rs.getDouble("total"));
+                listaVenta.add(vent);
+            }
+        } catch (SQLException e) {
+            System.out.println("Error al listar las ventas: " + e.getMessage());
+        } finally {
+            cerrarRecursos();
+        }
+        return listaVenta;
+    }
+
+    // Busca una venta por ID
+    public Venta buscarVenta(int id) {
+        Venta venta = new Venta();
         String sql = "SELECT * FROM ventas WHERE id = ?";
         try {
             con = cn.getConnection();
@@ -139,108 +152,118 @@ public class VentaDao {
             ps.setInt(1, id);
             rs = ps.executeQuery();
             if (rs.next()) {
-                cl.setId(rs.getInt("id"));
-                cl.setCliente(rs.getInt("cliente"));
-                cl.setTotal(rs.getDouble("total"));
-                cl.setVendedor(rs.getString("vendedor"));
-                cl.setFecha(rs.getString("fecha"));
+                venta.setId(rs.getInt("id"));
+                venta.setCliente(rs.getInt("cliente"));
+                venta.setTotal(rs.getDouble("total"));
+                venta.setVendedor(rs.getString("vendedor"));
+                venta.setFecha(rs.getString("fecha"));
             }
         } catch (SQLException e) {
-            System.out.println(e.toString());
+            System.out.println("Error al buscar la venta: " + e.getMessage());
+        } finally {
+            cerrarRecursos();
         }
-        return cl;
+        return venta;
     }
-    public void pdfV(int idventa, int Cliente, double total, String usuario) {
+
+    // Genera un PDF para la venta
+    public void generarPdf(int idVenta, int cliente, double total, String usuario) {
         try {
             Date date = new Date();
-            FileOutputStream archivo;
             String url = FileSystemView.getFileSystemView().getDefaultDirectory().getPath();
-            File salida = new File(url + "venta.pdf");
-            archivo = new FileOutputStream(salida);
+            File archivo = new File(url + "venta.pdf");
+            FileOutputStream fos = new FileOutputStream(archivo);
             Document doc = new Document();
-            PdfWriter.getInstance(doc, archivo);
+            PdfWriter.getInstance(doc, fos);
             doc.open();
-            Image img = Image.getInstance(getClass().getResource("/Img/logo_pdf.png"));
-            //Fecha
-            Paragraph fecha = new Paragraph();
+            
+            Image img = Image.getInstance(getClass().getResource("/Img/factura.png"));
             Font negrita = new Font(Font.FontFamily.TIMES_ROMAN, 12, Font.BOLD, BaseColor.BLUE);
+            
+            // Fecha y encabezado
+            Paragraph fecha = new Paragraph();
             fecha.add(Chunk.NEWLINE);
-            fecha.add("Vendedor: " + usuario + "\nFolio: " + idventa + "\nFecha: "
+            fecha.add("Vendedor: " + usuario + "\nFolio: " + idVenta + "\nFecha: "
                     + new SimpleDateFormat("dd/MM/yyyy").format(date) + "\n\n");
-            PdfPTable Encabezado = new PdfPTable(4);
-            Encabezado.setWidthPercentage(100);
-            Encabezado.getDefaultCell().setBorder(0);
+            
+            PdfPTable encabezado = new PdfPTable(4);
+            encabezado.setWidthPercentage(100);
+            encabezado.getDefaultCell().setBorder(0);
             float[] columnWidthsEncabezado = new float[]{20f, 30f, 70f, 40f};
-            Encabezado.setWidths(columnWidthsEncabezado);
-            Encabezado.setHorizontalAlignment(Element.ALIGN_LEFT);
-            Encabezado.addCell(img);
-            Encabezado.addCell("");
-            //info empresa
-            String config = "SELECT * FROM config";
-            String mensaje = "";
+            encabezado.setWidths(columnWidthsEncabezado);
+            encabezado.setHorizontalAlignment(Element.ALIGN_LEFT);
+            encabezado.addCell(img);
+            encabezado.addCell("");
+            
+            // Información de la empresa
+            String configSql = "SELECT * FROM config";
             try {
                 con = cn.getConnection();
-                ps = con.prepareStatement(config);
+                ps = con.prepareStatement(configSql);
                 rs = ps.executeQuery();
                 if (rs.next()) {
-                    mensaje = rs.getString("mensaje");
-                    Encabezado.addCell("Ruc:    " + rs.getString("ruc") + "\nNombre: " + rs.getString("nombre") + "\nTeléfono: " + rs.getString("telefono") + "\nDirección: " + rs.getString("direccion") + "\n\n");
+                    String mensaje = rs.getString("mensaje");
+                    encabezado.addCell("Ruc: " + rs.getString("ruc") + "\nNombre: " + rs.getString("nombre") +
+                            "\nTeléfono: " + rs.getString("telefono") + "\nDirección: " + rs.getString("direccion") + "\n\n");
                 }
             } catch (SQLException e) {
-                System.out.println(e.toString());
+                System.out.println("Error al obtener la configuración: " + e.getMessage());
             }
-            //
-            Encabezado.addCell(fecha);
-            doc.add(Encabezado);
-            //cliente
-            Paragraph cli = new Paragraph();
-            cli.add(Chunk.NEWLINE);
-            cli.add("DATOS DEL CLIENTE" + "\n\n");
-            doc.add(cli);
+            encabezado.addCell(fecha);
+            doc.add(encabezado);
+            
+            // Datos del cliente
+            Paragraph clienteParrafo = new Paragraph();
+            clienteParrafo.add(Chunk.NEWLINE);
+            clienteParrafo.add("DATOS DEL CLIENTE\n\n");
+            doc.add(clienteParrafo);
 
-            PdfPTable proveedor = new PdfPTable(3);
-            proveedor.setWidthPercentage(100);
-            proveedor.getDefaultCell().setBorder(0);
+            PdfPTable tablaCliente = new PdfPTable(3);
+            tablaCliente.setWidthPercentage(100);
+            tablaCliente.getDefaultCell().setBorder(0);
             float[] columnWidthsCliente = new float[]{50f, 25f, 25f};
-            proveedor.setWidths(columnWidthsCliente);
-            proveedor.setHorizontalAlignment(Element.ALIGN_LEFT);
+            tablaCliente.setWidths(columnWidthsCliente);
+            tablaCliente.setHorizontalAlignment(Element.ALIGN_LEFT);
+            
             PdfPCell cliNom = new PdfPCell(new Phrase("Nombre", negrita));
-            PdfPCell cliTel = new PdfPCell(new Phrase("Télefono", negrita));
+            PdfPCell cliTel = new PdfPCell(new Phrase("Teléfono", negrita));
             PdfPCell cliDir = new PdfPCell(new Phrase("Dirección", negrita));
             cliNom.setBorder(Rectangle.NO_BORDER);
             cliTel.setBorder(Rectangle.NO_BORDER);
             cliDir.setBorder(Rectangle.NO_BORDER);
-            proveedor.addCell(cliNom);
-            proveedor.addCell(cliTel);
-            proveedor.addCell(cliDir);
-            String prove = "SELECT * FROM clientes WHERE id = ?";
+            tablaCliente.addCell(cliNom);
+            tablaCliente.addCell(cliTel);
+            tablaCliente.addCell(cliDir);
+            
+            String clienteSql = "SELECT * FROM clientes WHERE id = ?";
             try {
-                ps = con.prepareStatement(prove);
-                ps.setInt(1, Cliente);
+                ps = con.prepareStatement(clienteSql);
+                ps.setInt(1, cliente);
                 rs = ps.executeQuery();
                 if (rs.next()) {
-                    proveedor.addCell(rs.getString("nombre"));
-                    proveedor.addCell(rs.getString("telefono"));
-                    proveedor.addCell(rs.getString("direccion") + "\n\n");
+                    tablaCliente.addCell(rs.getString("nombre"));
+                    tablaCliente.addCell(rs.getString("telefono"));
+                    tablaCliente.addCell(rs.getString("direccion") + "\n\n");
                 } else {
-                    proveedor.addCell("Publico en General");
-                    proveedor.addCell("S/N");
-                    proveedor.addCell("S/N" + "\n\n");
+                    tablaCliente.addCell("Público en General");
+                    tablaCliente.addCell("S/N");
+                    tablaCliente.addCell("S/N" + "\n\n");
                 }
-
             } catch (SQLException e) {
-                System.out.println(e.toString());
+                System.out.println("Error al obtener los datos del cliente: " + e.getMessage());
             }
-            doc.add(proveedor);
-
-            PdfPTable tabla = new PdfPTable(4);
-            tabla.setWidthPercentage(100);
-            tabla.getDefaultCell().setBorder(0);
+            doc.add(tablaCliente);
+            
+            // Detalles de la venta
+            PdfPTable tablaVenta = new PdfPTable(4);
+            tablaVenta.setWidthPercentage(100);
+            tablaVenta.getDefaultCell().setBorder(0);
             float[] columnWidths = new float[]{10f, 50f, 15f, 15f};
-            tabla.setWidths(columnWidths);
-            tabla.setHorizontalAlignment(Element.ALIGN_LEFT);
+            tablaVenta.setWidths(columnWidths);
+            tablaVenta.setHorizontalAlignment(Element.ALIGN_LEFT);
+            
             PdfPCell c1 = new PdfPCell(new Phrase("Cant.", negrita));
-            PdfPCell c2 = new PdfPCell(new Phrase("Descripción.", negrita));
+            PdfPCell c2 = new PdfPCell(new Phrase("Descripción", negrita));
             PdfPCell c3 = new PdfPCell(new Phrase("P. unt.", negrita));
             PdfPCell c4 = new PdfPCell(new Phrase("P. Total", negrita));
             c1.setBorder(Rectangle.NO_BORDER);
@@ -251,51 +274,77 @@ public class VentaDao {
             c2.setBackgroundColor(BaseColor.LIGHT_GRAY);
             c3.setBackgroundColor(BaseColor.LIGHT_GRAY);
             c4.setBackgroundColor(BaseColor.LIGHT_GRAY);
-            tabla.addCell(c1);
-            tabla.addCell(c2);
-            tabla.addCell(c3);
-            tabla.addCell(c4);
-            String product = "SELECT d.id, d.id_pro,d.id_venta, d.precio, d.cantidad, p.id, p.nombre FROM detalle d INNER JOIN productos p ON d.id_pro = p.id WHERE d.id_venta = ?";
+            tablaVenta.addCell(c1);
+            tablaVenta.addCell(c2);
+            tablaVenta.addCell(c3);
+            tablaVenta.addCell(c4);
+            
+            String detalleSql = "SELECT d.id, d.id_pro, d.id_venta, d.precio, d.cantidad, p.nombre FROM detalle d INNER JOIN productos p ON d.id_pro = p.id WHERE d.id_venta = ?";
             try {
-                ps = con.prepareStatement(product);
-                ps.setInt(1, idventa);
+                ps = con.prepareStatement(detalleSql);
+                ps.setInt(1, idVenta);
                 rs = ps.executeQuery();
                 while (rs.next()) {
                     double subTotal = rs.getInt("cantidad") * rs.getDouble("precio");
-                    tabla.addCell(rs.getString("cantidad"));
-                    tabla.addCell(rs.getString("nombre"));
-                    tabla.addCell(rs.getString("precio"));
-                    tabla.addCell(String.valueOf(subTotal));
+                    tablaVenta.addCell(rs.getString("cantidad"));
+                    tablaVenta.addCell(rs.getString("nombre"));
+                    tablaVenta.addCell(rs.getString("precio"));
+                    tablaVenta.addCell(String.valueOf(subTotal));
                 }
-
             } catch (SQLException e) {
-                System.out.println(e.toString());
+                System.out.println("Error al obtener los detalles de la venta: " + e.getMessage());
             }
-            doc.add(tabla);
+            doc.add(tablaVenta);
+            
+            // Información adicional
             Paragraph info = new Paragraph();
             info.add(Chunk.NEWLINE);
             info.add("Total S/: " + total);
             info.setAlignment(Element.ALIGN_RIGHT);
             doc.add(info);
+            
             Paragraph firma = new Paragraph();
             firma.add(Chunk.NEWLINE);
-            firma.add("Cancelacion \n\n");
+            firma.add("Cancelación \n\n");
             firma.add("------------------------------------\n");
             firma.add("Firma \n");
             firma.setAlignment(Element.ALIGN_CENTER);
             doc.add(firma);
-            Paragraph gr = new Paragraph();
-            gr.add(Chunk.NEWLINE);
-            gr.add(mensaje);
-            gr.setAlignment(Element.ALIGN_CENTER);
-            doc.add(gr);
+            
+            // Mensaje de la empresa
+            String mensaje = "";
+            try {
+                con = cn.getConnection();
+                ps = con.prepareStatement("SELECT mensaje FROM config");
+                rs = ps.executeQuery();
+                if (rs.next()) {
+                    mensaje = rs.getString("mensaje");
+                }
+            } catch (SQLException e) {
+                System.out.println("Error al obtener el mensaje de la empresa: " + e.getMessage());
+            }
+            Paragraph mensajeParrafo = new Paragraph();
+            mensajeParrafo.add(Chunk.NEWLINE);
+            mensajeParrafo.add(mensaje);
+            mensajeParrafo.setAlignment(Element.ALIGN_CENTER);
+            doc.add(mensajeParrafo);
+            
             doc.close();
-            archivo.close();
-            Desktop.getDesktop().open(salida);
+            fos.close();
+            Desktop.getDesktop().open(archivo);
         } catch (DocumentException | IOException e) {
-            System.out.println(e.toString());
+            System.out.println("Error al generar el PDF: " + e.getMessage());
         }
     }
 
-    
+    // Método para cerrar recursos
+    private void cerrarRecursos() {
+        try {
+            if (rs != null) rs.close();
+            if (ps != null) ps.close();
+            if (con != null) con.close();
+        } catch (SQLException e) {
+            System.out.println("Error al cerrar recursos: " + e.getMessage());
+        }
+    }
 }
